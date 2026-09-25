@@ -1,34 +1,60 @@
-// Tiny localStorage-backed "database" — swap this out for a real backend
-// (Supabase/Firebase/Postgres via Vercel) later; the shape is kept simple on purpose.
-const KEY = "quizquest_db_v1";
+// Real Supabase-backed auth, with a local-only fallback so the app still
+// runs before you've filled in .env (see .env.example / README).
+import { supabase, supabaseReady } from "./lib/supabaseClient.js";
 
-function load() {
+const LOCAL_KEY = "quizquest_local_v1";
+function loadLocal() {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(LOCAL_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return { users: {}, sets: ["World Capitals", "Math Basics", "Science Quiz"], gamesPlayed: 0 };
 }
-
-let db = load();
-
-function persist() {
-  localStorage.setItem(KEY, JSON.stringify(db));
+let local = loadLocal();
+function persistLocal() {
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(local));
 }
 
 export const store = {
-  get: () => db,
-  register(username, password) {
-    db.users[username] = { password };
-    persist();
-  },
-  login(username, password) {
-    if (!db.users[username]) db.users[username] = { password }; // demo auto-register
-    persist();
-    return username;
-  },
+  ready: supabaseReady,
+  get: () => local,
   incGames() {
-    db.gamesPlayed++;
-    persist();
+    local.gamesPlayed++;
+    persistLocal();
+  },
+
+  async register(username, email, password) {
+    if (!supabaseReady) {
+      local.users[username] = { password };
+      persistLocal();
+      return { error: null };
+    }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    });
+    return { error };
+  },
+
+  async login(email, password) {
+    if (!supabaseReady) {
+      const username = email.split("@")[0] || "Teacher";
+      if (!local.users[username]) local.users[username] = { password };
+      persistLocal();
+      return { user: username, error: null };
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { user: null, error };
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", data.user.id)
+      .single();
+    return { user: profile?.username || email.split("@")[0], error: null };
+  },
+
+  async logout() {
+    if (supabaseReady) await supabase.auth.signOut();
   },
 };

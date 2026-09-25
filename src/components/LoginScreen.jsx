@@ -3,41 +3,58 @@ import { store } from "../store.js";
 
 export default function LoginScreen({ onAuth, onBack }) {
   const [tab, setTab] = useState("login");
-  const [liUser, setLiUser] = useState("");
-  const [liPass, setLiPass] = useState("");
-  const [reUser, setReUser] = useState("");
-  const [rePass, setRePass] = useState("");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [uname, setUname] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function doRegister() {
-    if (!reUser.trim() || !rePass) return;
-    store.register(reUser.trim(), rePass);
+  async function doRegister() {
+    setErr(""); setBusy(true);
+    const { error } = await store.register(uname.trim(), email.trim(), pass);
+    setBusy(false);
+    if (error) return setErr(error.message);
     setTab("login");
   }
-  function doLogin() {
-    const u = store.login(liUser.trim() || "Teacher", liPass);
-    onAuth(u);
+  async function doLogin() {
+    setErr(""); setBusy(true);
+    const { user, error } = await store.login(email.trim(), pass);
+    setBusy(false);
+    if (error) return setErr(error.message);
+    onAuth(user);
   }
 
   return (
     <div className="screen" id="loginScreen">
       <div className="authBox">
+        {!store.ready && (
+          <p style={{ color: "var(--gold)", fontSize: ".8rem", marginBottom: 10 }}>
+            ⚠️ Demo mode — add your Supabase keys to .env to enable real accounts.
+          </p>
+        )}
         <div className="tabs">
           <button className={tab === "login" ? "active" : ""} onClick={() => setTab("login")}>Log In</button>
           <button className={tab === "register" ? "active" : ""} onClick={() => setTab("register")}>Register</button>
         </div>
         {tab === "login" ? (
           <div>
-            <input placeholder="Username" value={liUser} onChange={(e) => setLiUser(e.target.value)} />
-            <input type="password" placeholder="Password" value={liPass} onChange={(e) => setLiPass(e.target.value)} />
-            <button className="btn primary" style={{ width: "100%" }} onClick={doLogin}>Log In</button>
+            <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input type="password" placeholder="Password" value={pass} onChange={(e) => setPass(e.target.value)} />
+            <button className="btn primary" style={{ width: "100%" }} disabled={busy} onClick={doLogin}>
+              {busy ? "..." : "Log In"}
+            </button>
           </div>
         ) : (
           <div>
-            <input placeholder="Username" value={reUser} onChange={(e) => setReUser(e.target.value)} />
-            <input type="password" placeholder="Password" value={rePass} onChange={(e) => setRePass(e.target.value)} />
-            <button className="btn primary" style={{ width: "100%" }} onClick={doRegister}>Create Account</button>
+            <input placeholder="Username" value={uname} onChange={(e) => setUname(e.target.value)} />
+            <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input type="password" placeholder="Password" value={pass} onChange={(e) => setPass(e.target.value)} />
+            <button className="btn primary" style={{ width: "100%" }} disabled={busy} onClick={doRegister}>
+              {busy ? "..." : "Create Account"}
+            </button>
           </div>
         )}
+        {err && <p style={{ color: "var(--danger)", fontSize: ".85rem", marginTop: 10 }}>{err}</p>}
         <button className="btn" style={{ width: "100%", marginTop: 10 }} onClick={onBack}>← Back</button>
       </div>
     </div>

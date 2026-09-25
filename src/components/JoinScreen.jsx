@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 
-export default function JoinScreen({ ldm, setLdm, onHost, toast }) {
+export default function JoinScreen({ ldm, setLdm, onHost, toast, onJoin, connected }) {
   const [code, setCode] = useState("");
   const [nick, setNick] = useState("");
 
   function joinGame() {
     if (!code.trim()) return toast("Enter a game code");
-    toast(`Joined as ${nick || "Player"}! (host controls launch)`);
+    if (!connected) return toast("Demo mode: real room joining needs Supabase keys (see README)");
+    onJoin(code.trim().toUpperCase(), nick.trim() || "Player");
   }
 
   return (
@@ -16,18 +17,11 @@ export default function JoinScreen({ ldm, setLdm, onHost, toast }) {
         placeholder="GAME CODE"
         maxLength={6}
         value={code}
-        onChange={(e) => setCode(e.target.value)}
+        onChange={(e) => setCode(e.target.value.toUpperCase())}
       />
       <input
         placeholder="Nickname"
-        style={{
-          padding: 10,
-          borderRadius: 10,
-          border: "1px solid var(--purple)",
-          background: "var(--panel)",
-          color: "var(--text)",
-          width: 230,
-        }}
+        className="nickInput"
         value={nick}
         onChange={(e) => setNick(e.target.value)}
       />
@@ -37,6 +31,11 @@ export default function JoinScreen({ ldm, setLdm, onHost, toast }) {
         <input type="checkbox" checked={ldm} onChange={(e) => setLdm(e.target.checked)} />
         Low Detail Mode (for tablets)
       </label>
+      {!connected && (
+        <p style={{ color: "var(--sub)", fontSize: ".75rem", maxWidth: 300 }}>
+          Running in local demo mode. Add Supabase keys to enable real accounts and cross-device rooms.
+        </p>
+      )}
     </div>
   );
 }
